@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+  parentId    String?
+  parent      Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  discountPrice Float?
+  discountEndDate DateTime?
+  sku         String      @unique
+  stock       Int         @default(0)
+  weight      Float       @default(0.5) // Item weight in kg
+  imageUrl    String?
+  status      String      @default("ACTIVE") // ACTIVE, DRAFT, OUT_OF_STOCK
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  
+  // Book specific optional attributes
+  publisher   String?
+  edition     String?
+  editionDate String?
+  dimension   String?
+  isbn10      String?
+  isbn13      String?
+  fastDispatch Boolean   @default(false)
+  videoUrl    String?
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  password   String
+  role       String   @default("CUSTOMER") // CUSTOMER, STAFF, ADMIN
+  // Extended contact profile
+  phone      String?
+  fax        String?
+  address    String?
+  city       String?
+  state      String?
+  postalCode String?
+  country    String?
+  orders     Order[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String?     // Optional for guest checkouts, linked if logged in
+  user            User?       @relation(fields: [userId], references: [id])
+  customerName    String
+  customerEmail   String
+  shippingAddress String
+  totalAmount     Float
+  shippingWeight  Float       @default(0.0) // Total order weight in kg
+  shippingCost    Float       @default(0.0) // Total shipping calculated
+  taxAmount       Float       @default(0.0) // Total tax calculated
+  discountCode    String?     // Promo coupon applied
+  discountAmount  Float?      // Saved discount amount
+  status          String      @default("PROCESSING") // PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  historyLog      String      @default("[]") // JSON stringified array of order history logs
+  shippingMethod  String      @default("FLAT") // FLAT, IPS
+  trackingNumber  String?     
+  carrier         String?     
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float    // Historical price at purchase time
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Discount {
+  id          String   @id @default(cuid())
+  code        String   @unique // Promo code string, e.g. WELCOME10
+  type        String   // PERCENT, FLAT
+  value       Float    // Discount percentage or flat dollar value
+  minWeight   Float    @default(0.0) // Minimum weight threshold in kg if applicable
+  active      Boolean  @default(true)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CMSContent {
+  id          String   @id @default(cuid())
+  key         String   @unique // CMS variable key, e.g. home_hero_title
+  value       String   // String value of CMS content
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BulkOrder {
+  id               String   @id @default(cuid())
+  organizationName String
+  orgType          String
+  productCategory  String
+  quantityRange    String
+  contactName      String
+  email            String
+  phone            String
+  comments         String?
+  status           String   @default("PENDING") // PENDING, IN_PROGRESS, FULFILLED
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
